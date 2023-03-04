@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33110.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MySqlConnector", "MySqlConnector.csproj", "{EE6650BD-0463-4864-B895-31FF40E17458}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MySqlConnector Test", "..\MySqlConnector Test\MySqlConnector Test.csproj", "{DD89ED6A-8B94-4983-8D67-E9DB3CCEE3FE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EE6650BD-0463-4864-B895-31FF40E17458}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE6650BD-0463-4864-B895-31FF40E17458}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE6650BD-0463-4864-B895-31FF40E17458}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE6650BD-0463-4864-B895-31FF40E17458}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD89ED6A-8B94-4983-8D67-E9DB3CCEE3FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD89ED6A-8B94-4983-8D67-E9DB3CCEE3FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD89ED6A-8B94-4983-8D67-E9DB3CCEE3FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD89ED6A-8B94-4983-8D67-E9DB3CCEE3FE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F87EE2B3-CB7A-4760-9912-5D5C21568D4D}
+	EndGlobalSection
+EndGlobal
