@@ -5,8 +5,11 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+
+
 using MySql.Data;
 using MySql.Data.MySqlClient;
 
@@ -72,6 +75,11 @@ namespace MySqlConnector
             private static string MYSQL_CONNECTION_STRING { get; set; }
 
             /// <summary>
+            /// Conection good
+            /// </summary>
+            private static bool MYSQL_CONNECTION_INITIALIZED { get; set; }
+
+            /// <summary>
             /// Last Error Message
             /// </summary>
             private static string MYSQL_LAST_ERROR { get; set; }
@@ -119,15 +127,17 @@ namespace MySqlConnector
                     MYSQL_Connection.Open();
                     if (MYSQL_Connection.State == ConnectionState.Open)
                     {
-                        ///Checking connection to your server
+                        ///Checking connection to server
                         if (MYSQL_Connection.Ping() == false)
                         {
                             MYSQL_Connection.Close();
+                            MYSQL_CONNECTION_INITIALIZED = false;
                             MYSQL_LAST_ERROR = "MYSQL Ping test faild.";
                             return -1;
                         }
                     }
 
+                    MYSQL_CONNECTION_INITIALIZED = true;
                     MYSQL_Command = new MySqlCommand(string.Empty, MYSQL_Connection);
                     MYSQL_DataAdapter = new MySqlDataAdapter(string.Empty, MYSQL_Connection);
                     MYSQL_DataSet = new DataSet();
@@ -147,8 +157,15 @@ namespace MySqlConnector
             /// </summary>
             public static void MYSQL_Open()
             {
-                if (MYSQL_Connection.State != ConnectionState.Open)
-                    MYSQL_Connection.Open();
+                if(MYSQL_CONNECTION_INITIALIZED)
+                {
+                    if (MYSQL_Connection.State != ConnectionState.Open)
+                        MYSQL_Connection.Open();
+                }
+                else
+                {
+                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
+                }    
             }
 
 
@@ -157,8 +174,15 @@ namespace MySqlConnector
             /// </summary>
             public static void MYSQL_Close()
             {
-                if (MYSQL_Connection.State == ConnectionState.Open)
-                    MYSQL_Connection.Close();
+                if(MYSQL_CONNECTION_INITIALIZED)
+                {
+                    if (MYSQL_Connection.State == ConnectionState.Open)
+                        MYSQL_Connection.Close();
+                }
+                else
+                {
+                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
+                }         
             }
 
 
@@ -190,27 +214,33 @@ namespace MySqlConnector
             {
                 try
                 {
-                    if (MYSQL_ConnectionIsOpen())
+                    if(MYSQL_CONNECTION_INITIALIZED)
                     {
-                        MYSQL_Command.CommandText = query;
-                        MYSQL_DataReader = MYSQL_Command.ExecuteReader();
-                        MYSQL_DataReader.Read();
-                        if (MYSQL_DataReader.HasRows)
+                        if (MYSQL_ConnectionIsOpen())
                         {
-                            return MYSQL_DataReader;
+                            MYSQL_Command.CommandText = query;
+                            MYSQL_DataReader = MYSQL_Command.ExecuteReader();
+                            MYSQL_DataReader.Read();
+                            if (MYSQL_DataReader.HasRows)
+                            {
+                                return MYSQL_DataReader;
+                            }
+                            else
+                            {
+                                MYSQL_LAST_ERROR = "Unable to locate any data using this SQL statement.";
+                                return null;
+                            }
                         }
                         else
                         {
-                            MYSQL_LAST_ERROR = "Unable to locate any data using this SQL statement.";
+                            MYSQL_LAST_ERROR = "MYSQL Connection offline.";
                             return null;
                         }
                     }
                     else
                     {
-                        MYSQL_LAST_ERROR = "MYSQL Connection offline.";
-                        return null;
+                        MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
                     }
-
                 }
                 catch (Exception ex)
                 {
@@ -226,8 +256,15 @@ namespace MySqlConnector
             /// </summary>
             public static void MYSQL_CloseReader()
             {
-                if (MYSQL_DataReader.IsClosed == false)
-                    MYSQL_DataReader.Close();
+                if(MYSQL_CONNECTION_INITIALIZED)
+                {
+                    if (MYSQL_DataReader.IsClosed == false)
+                        MYSQL_DataReader.Close();
+                }
+                else
+                {
+                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
+                }
             }
 
 
@@ -248,7 +285,7 @@ namespace MySqlConnector
                     else
                     {
 
-                        MYSQL_LAST_ERROR = "MYSQL Connection offline.";
+                        MYSQL_LAST_ERROR = "MYSQL Connection is offline.";
                         return -2;
                     }
                 }
@@ -273,7 +310,7 @@ namespace MySqlConnector
                 {
                     if (MYSQL_DataSet.Tables.Contains(tableName))
                     {
-                        MYSQL_LAST_ERROR = $"{tableName} already in the data set.";
+                        MYSQL_LAST_ERROR = $"{tableName} is already in the data set.";
                         return -1;
                     }
                     else
@@ -297,7 +334,7 @@ namespace MySqlConnector
             /// Access your temp imported tables.You can use LINQ (Language Integrated Query) manipulate data in your table. Get more information about LINQ
             /// from <see href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/concepts/linq/">here</see>
             /// </summary>
-            /// <param name="tableName">Name of table that your going import from your data source</param>
+            /// <param name="tableName">Name of table that your imported from your data source</param>
             /// <returns>Return Table on success or null on failure. Use MYSQL_LastError() for get more information about the failure</returns>
             public static DataTable MYSQL_TableAccess(string tableName)
             {
@@ -342,22 +379,47 @@ namespace MySqlConnector
 
             public static string MYSQL_HashMD5(string text)
             {
-                return null;
+                return Encoding.UTF8.GetString(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(text)));
             }
 
             public static string MYSQL_HashSHA256(string text)
             {
-                return null;
+                return Encoding.UTF8.GetString(SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(text)));
             }
 
             public static string MYSQL_HashSHA512(string text)
             {
-                return null;
+                return Encoding.UTF8.GetString(SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(text)));
             }
 
-            public static string MYSQL_EncryptAES(string text, string master_key, HashAlgorithm hash_algorithm)
+            public static string MYSQL_Encrypt(string text, string master_key, EncryptionAlgorithm encryption_algorithm, HashAlgorithm hash_algorithm)
             {
-                return null;
+                if(encryption_algorithm == EncryptionAlgorithm.AES)
+                {
+                    byte[] AES_KEY = null;
+                    byte[] AES_IV = null;
+
+                    if (hash_algorithm == HashAlgorithm.MD5)
+                    {
+                        AES_KEY = MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
+                    }
+
+                    if (hash_algorithm == HashAlgorithm.SHA256)
+                    {
+                        AES_KEY = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
+                    }
+
+                    if (hash_algorithm == HashAlgorithm.SHA512)
+                    {
+                        AES_KEY = SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
+                    }
+                }
+                
+
+                
             }
 
             public static string MYSQL_DecryptAES(string encrypted_text, string master_key, HashAlgorithm hash_algorithm)
