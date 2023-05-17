@@ -12,9 +12,18 @@ using MySql.Data.MySqlClient;
 
 namespace MySqlConnector
 {
+    public sealed class MYSQL_InitException : Exception
+    {
+        public MYSQL_InitException(string message) : base(message) { }
+    }
+    public sealed class MYSQL_InternelException : Exception
+    {
+        public MYSQL_InternelException(string message) : base(message) { }
+    }
+
     namespace  Connection
     {
-        public class MySqlConnect
+        public sealed class MySqlConnect
         {
             /// <summary>
             /// Connection to the MYSQL Server database
@@ -82,20 +91,18 @@ namespace MySqlConnector
             private static string MYSQL_LAST_ERROR { get; set; }
 
             /// <summary>
-            /// MYSQL Connector Standard Error >> 
-            /// Value : -1
+            /// MYSQL Connector Standard Error
             /// </summary>
             public static int MYSQL_ERROR { get { return -1; } }
 
 
             /// <summary>
-            /// MYSQL Connector success >> 
-            /// Value : 0
+            /// MYSQL Connector success
             /// </summary>
             public static int MYSQL_SUCCESS { get { return 0; } }
 
             /// <summary>
-            /// Null Value;
+            /// Null
             /// </summary>
             public static object MYSQL_NOVALUE { get { return null; } }
 
@@ -103,12 +110,16 @@ namespace MySqlConnector
             /// <summary>
             /// Initalize MySqlConnection with the information you have given. Make sure your informations are correct.
             /// Connection is default closed. you can open it anytime
+            /// <para>
+            /// <b>Exceptions</b>
+            /// <see cref="MYSQL_InternelException"/>
+            /// </para>
             /// </summary>
             /// <param name="server">   Name of the Server that you are going to connect</param>
             /// <param name="database"> Name of the Database that you want to connect</param>
-            /// <param name="username"> USERNAME is base on server side privillage</param>
-            /// <param name="password"> PASSWORD is base on server side privillage</param>
-            /// <returns>returns 0 on success or -1 on failure. Use MYSQL_LastError() method for get more information about the failure.</returns>
+            /// <param name="username"> USERNAME is base on server side access</param>
+            /// <param name="password"> PASSWORD is base on server side access</param>
+            /// <returns>Returns <c>MYSQL_SUCCESS</c> on success or <c>MYSQL_ERROR</c> on failure. Use <c>MYSQL_LastError()</c> method for get more information about the failure.</returns>
             public static int MYSQL_ConfigureAndInitialize(string server, string port, string database, string username, string password)
             {
                 try
@@ -143,56 +154,95 @@ namespace MySqlConnector
                 }
                 catch (Exception ex)
                 {
-                    MYSQL_LAST_ERROR = ex.Message;
-                    return -1;
+                    throw new MYSQL_InternelException(ex.Message);
                 }
             }
 
 
             /// <summary>
             /// Open Connection
+            /// <para>
+            /// <b>Exceptions:</b>
+            /// <see cref="MYSQL_InitException"/>,
+            /// <see cref="MYSQL_InternelException"/>
+            /// </para>
             /// </summary>
             public static void MYSQL_Open()
             {
-                if(MYSQL_CONNECTION_INITIALIZED)
+                try
                 {
-                    if (MYSQL_Connection.State != ConnectionState.Open)
-                        MYSQL_Connection.Open();
+                    if (MYSQL_CONNECTION_INITIALIZED)
+                    {
+                        if (MYSQL_Connection.State != ConnectionState.Open)
+                            MYSQL_Connection.Open();
+                    }
+                    else
+                    {
+                        MYSQL_LAST_ERROR = "MYSQL Connection is not correctly initialized. Try MYSQL_ConfigureAndInitialize(...) method.";
+                        throw new MYSQL_InitException(MYSQL_LAST_ERROR);
+                    }
                 }
-                else
+                catch(Exception ex)
                 {
-                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
-                }    
+                    MYSQL_LAST_ERROR = ex.Message;
+                    throw new MYSQL_InternelException(ex.Message);
+                }     
             }
 
 
             /// <summary>
             /// Close Connection
+            /// <para>
+            /// <b>Exceptions:</b>
+            /// <see cref="MYSQL_InitException"/>,
+            /// <see cref="MYSQL_InternelException"/>
+            /// </para>
             /// </summary>
             public static void MYSQL_Close()
             {
-                if(MYSQL_CONNECTION_INITIALIZED)
+                try
                 {
-                    if (MYSQL_Connection.State == ConnectionState.Open)
-                        MYSQL_Connection.Close();
+                    if (MYSQL_CONNECTION_INITIALIZED)
+                    {
+                        if (MYSQL_Connection.State == ConnectionState.Open)
+                            MYSQL_Connection.Close();
+                    }
+                    else
+                    {
+                        MYSQL_LAST_ERROR = "MYSQL Connection is not correctly initialized. Try MYSQL_ConfigureAndInitialize(...) method.";
+                        throw new MYSQL_InitException(MYSQL_LAST_ERROR);
+                    }
                 }
-                else
+                catch(Exception ex)
                 {
-                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
-                }         
+                    MYSQL_LAST_ERROR = ex.Message;
+                    throw new MYSQL_InternelException(ex.Message);
+                }       
             }
 
 
             /// <summary>
             /// Check for the State of Connection
+            /// <para>
+            /// <b>Exceptions:</b>
+            /// <see cref="MYSQL_InitException"/>
+            /// </para>
             /// </summary>
             /// <returns>Returns true (open) or false (closed)</returns>
             public static bool MYSQL_ConnectionIsOpen()
             {
-                if (MYSQL_Connection.State == ConnectionState.Open)
-                    return true;
+                if(MYSQL_CONNECTION_INITIALIZED)
+                {
+                    if (MYSQL_Connection.State == ConnectionState.Open)
+                        return true;
+                    else
+                        return false;
+                }
                 else
-                    return false;
+                {
+                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly initialized. Try MYSQL_ConfigureAndInitialize(...) method.";
+                    throw new MYSQL_InitException(MYSQL_LAST_ERROR);
+                }
             }
 
 
@@ -203,10 +253,15 @@ namespace MySqlConnector
             /// is busy serving the MySql.Data.MySqlClient.MySqlDataReader, and no other operations can be performed on the MySqlConnection 
             /// other than closing it. This is the case until the MySql.Data.MySqlClient.MySqlDataReader.Close method of the MySql.Data.MySqlClient.MySqlDataReader
             /// </para>
-            /// You can use MYSQL_CloseReader() method to close the MySqlDataReader.
+            /// You can use <c>MYSQL_CloseReader()</c> method to close the MySqlDataReader.
+            /// <para>
+            /// <b>Exceptions:</b>
+            /// <see cref="MYSQL_InitException"/>,
+            /// <see cref="MYSQL_InternelException"/>
+            /// </para>
             /// </summary>
             /// <param name="query">SQL Statement</param>
-            /// <returns>Returns data on success or null on failure. Use MYSQL_LastError() method for get more information about the failure.</returns>
+            /// <returns>Returns data on success or null on failure. Use <c>MYSQL_LastError()</c> method for get more information about the failure.</returns>
             public static MySqlDataReader MYSQL_Reader(string query)
             {
                 try
@@ -236,12 +291,14 @@ namespace MySqlConnector
                     }
                     else
                     {
-                        MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
+                        MYSQL_LAST_ERROR = "MYSQL Connection is not correctly initialized. Try MYSQL_ConfigureAndInitialize(...) method.";
+                        throw new MYSQL_InitException(MYSQL_LAST_ERROR);
                     }
                 }
                 catch (Exception ex)
                 {
                     MYSQL_LAST_ERROR = ex.Message;
+                    throw new MYSQL_InternelException(ex.Message);
                 }
             }
 
@@ -263,6 +320,8 @@ namespace MySqlConnector
             }
 
 
+            //TODO : Fix the return value of this method
+            
             /// <summary>
             /// Write new records to your database using a SQL statement.
             /// </summary>
@@ -295,10 +354,10 @@ namespace MySqlConnector
             /// <summary>
             /// Temp import table to Data Set. Importing table copy of the current table in your data source. 
             /// Any changes that happen in your data source table not going to happen in your imported table. 
-            /// You can access your using MYSQL_TableAccess() method
+            /// You can access your using <c>MYSQL_TableAccess()</c> method
             /// </summary>
             /// <param name="tableName">Name of table that your going import from your data source</param>
-            /// <returns>Return 0 on success or -1 on failure. Use MYSQL_LastError() for get more information about the failure</returns>
+            /// <returns>Return 0 on success or -1 on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
             public static int MYSQL_ImportTable(string tableName)
             {
                 try
@@ -319,6 +378,7 @@ namespace MySqlConnector
                 catch (Exception ex)
                 {
                     MYSQL_LAST_ERROR = ex.Message;
+                    throw new MYSQL_InternelException(ex.Message);
                 }
             }
 
@@ -328,7 +388,7 @@ namespace MySqlConnector
             /// from <see href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/concepts/linq/">here</see>
             /// </summary>
             /// <param name="tableName">Name of table that your imported from your data source</param>
-            /// <returns>Return Table on success or null on failure. Use MYSQL_LastError() for get more information about the failure</returns>
+            /// <returns>Return Table on success or null on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
             public static DataTable MYSQL_TableAccess(string tableName)
             {
                 if (MYSQL_DataSet.Tables.Contains(tableName))
@@ -385,34 +445,34 @@ namespace MySqlConnector
                 return Encoding.UTF8.GetString(SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(text)));
             }
 
-            public static string MYSQL_Encrypt(string text, string master_key, EncryptionAlgorithm encryption_algorithm, HashAlgorithm hash_algorithm)
-            {
-                if(encryption_algorithm == EncryptionAlgorithm.AES)
-                {
-                    byte[] AES_KEY = null;
-                    byte[] AES_IV = null;
+            //public static string MYSQL_Encrypt(string text, string master_key, EncryptionAlgorithm encryption_algorithm, HashAlgorithm hash_algorithm)
+            //{
+            //    if(encryption_algorithm == EncryptionAlgorithm.AES)
+            //    {
+            //        byte[] AES_KEY = null;
+            //        byte[] AES_IV = null;
 
-                    if (hash_algorithm == HashAlgorithm.MD5)
-                    {
-                        AES_KEY = MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
-                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
-                    }
+            //        if (hash_algorithm == HashAlgorithm.MD5)
+            //        {
+            //            AES_KEY = MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+            //            AES_IV = MD5.Create().ComputeHash(AES_KEY);
+            //        }
 
-                    if (hash_algorithm == HashAlgorithm.SHA256)
-                    {
-                        AES_KEY = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
-                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
-                    }
+            //        if (hash_algorithm == HashAlgorithm.SHA256)
+            //        {
+            //            AES_KEY = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+            //            AES_IV = MD5.Create().ComputeHash(AES_KEY);
+            //        }
 
-                    if (hash_algorithm == HashAlgorithm.SHA512)
-                    {
-                        AES_KEY = SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
-                        AES_IV = MD5.Create().ComputeHash(AES_KEY);
-                    }
-                }
+            //        if (hash_algorithm == HashAlgorithm.SHA512)
+            //        {
+            //            AES_KEY = SHA512.Create().ComputeHash(Encoding.UTF8.GetBytes(master_key));
+            //            AES_IV = MD5.Create().ComputeHash(AES_KEY);
+            //        }
+            //    }
 
                 
-            }
+            //}
 
             public static string MYSQL_DecryptAES(string encrypted_text, string master_key, HashAlgorithm hash_algorithm)
             {
