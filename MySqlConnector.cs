@@ -8,9 +8,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-
-
-using MySql.Data;
 using MySql.Data.MySqlClient;
 
 namespace MySqlConnector
@@ -246,8 +243,6 @@ namespace MySqlConnector
                 {
                     MYSQL_LAST_ERROR = ex.Message;
                 }
-
-                return null;
             }
 
 
@@ -325,8 +320,6 @@ namespace MySqlConnector
                 {
                     MYSQL_LAST_ERROR = ex.Message;
                 }
-
-                return -1;
             }
 
 
@@ -417,22 +410,11 @@ namespace MySqlConnector
                         AES_IV = MD5.Create().ComputeHash(AES_KEY);
                     }
                 }
-                
 
                 
             }
 
             public static string MYSQL_DecryptAES(string encrypted_text, string master_key, HashAlgorithm hash_algorithm)
-            {
-                return null;
-            }
-
-            public static string MYSQL_EncryptDES(string text, string master_key, HashAlgorithm hash_algorithm)
-            {
-                return null;
-            }
-
-            public static string MYSQL_DecryptDES(string encrypted_text, string master_key, HashAlgorithm hash_algorithm)
             {
                 return null;
             }
