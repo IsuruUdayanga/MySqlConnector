@@ -12,19 +12,47 @@ using MySql.Data.MySqlClient;
 
 namespace MySqlConnector
 {
+    enum MYSQLCON_STD_INFO : int
+    { 
+        SUCCESS     =  0,
+        ERROR       = -1,
+        INFO        = -2,
+        WARNING     = -3
+    };
+
+    public enum MYSQLCON_STD : int
+    {
+        MYSQL_SUCCESS           =  MYSQLCON_STD_INFO.SUCCESS, 
+        MYSQL_ERROR             =  MYSQLCON_STD_INFO.ERROR, 
+        MYSQL_NOT_FOUND         =  MYSQLCON_STD_INFO.WARNING,
+        MYSQL_ZERO_AFFECTED     =  MYSQLCON_STD_INFO.INFO
+    };
+
+    #region MySqlConnector Exception
+
     public sealed class MYSQL_InitException : Exception
     {
         public MYSQL_InitException(string message) : base(message) { }
     }
+
     public sealed class MYSQL_InternelException : Exception
     {
         public MYSQL_InternelException(string message) : base(message) { }
     }
 
+    public sealed class MYSQL_ClosedConException : Exception
+    {
+        public MYSQL_ClosedConException(string message) : base(message) { }
+    }
+
+    #endregion
+
     namespace  Connection
     {
         public sealed class MySqlConnect
         {
+            #region Properties
+
             /// <summary>
             /// Connection to the MYSQL Server database
             /// </summary>
@@ -68,7 +96,7 @@ namespace MySqlConnector
             /// <summary>
             /// Password
             /// </summary>
-            private static string MYSQL_PASSWORD { get; set; }
+            private static string MYSQL_SHADOW { get; set; }
 
             /// <summary>
             /// Accessing port
@@ -102,10 +130,20 @@ namespace MySqlConnector
             public static int MYSQL_SUCCESS { get { return 0; } }
 
             /// <summary>
-            /// Null
+            /// MYSQL_NOVALUE is a generic type value that defines <c>null</c> for any type.
+            /// since this is a generic type you must cast it back to type that your actually using..
+            /// <para>
+            /// <b>Example:</b>
+            /// <code>
+            /// (string)MYSQL_NOVALUE
+            /// </code>
+            /// </para>
             /// </summary>
             public static object MYSQL_NOVALUE { get { return null; } }
 
+            #endregion
+
+            #region Methods
 
             /// <summary>
             /// Initalize MySqlConnection with the information you have given. Make sure your informations are correct.
@@ -120,28 +158,28 @@ namespace MySqlConnector
             /// <param name="username"> USERNAME is base on server side access</param>
             /// <param name="password"> PASSWORD is base on server side access</param>
             /// <returns>Returns <c>MYSQL_SUCCESS</c> on success or <c>MYSQL_ERROR</c> on failure. Use <c>MYSQL_LastError()</c> method for get more information about the failure.</returns>
-            public static int MYSQL_ConfigureAndInitialize(string server, string port, string database, string username, string password)
+            public static MYSQLCON_STD MYSQL_ConfigureAndInitialize(string server, string port, string database, string username, string password)
             {
                 try
                 {
-                    MYSQL_SERVER = server;
-                    MYSQL_PORT = port;
-                    MYSQL_DATABASE = database;
-                    MYSQL_USER = username;
-                    MYSQL_PASSWORD = password;
-                    MYSQL_CONNECTION_STRING = $"SERVER={MYSQL_SERVER};PORT={MYSQL_PORT};DATABASE={MYSQL_DATABASE};UID={MYSQL_USER};PASSWORD={MYSQL_PASSWORD};";
+                    MYSQL_SERVER            = server;
+                    MYSQL_PORT              = port;
+                    MYSQL_DATABASE          = database;
+                    MYSQL_USER              = username;
+                    MYSQL_SHADOW            = password;
+                    MYSQL_CONNECTION_STRING = $"SERVER={MYSQL_SERVER};PORT={MYSQL_PORT};DATABASE={MYSQL_DATABASE};UID={MYSQL_USER};PASSWORD={MYSQL_SHADOW};";
 
                     MYSQL_Connection = new MySqlConnection(MYSQL_CONNECTION_STRING);
                     MYSQL_Connection.Open();
                     if (MYSQL_Connection.State == ConnectionState.Open)
                     {
-                        ///Checking connection to server
+                        ///Checking connection to the server
                         if (MYSQL_Connection.Ping() == false)
                         {
                             MYSQL_Connection.Close();
                             MYSQL_CONNECTION_INITIALIZED = false;
-                            MYSQL_LAST_ERROR = "MYSQL Ping test faild.";
-                            return -1;
+                            MYSQL_LAST_ERROR = "MYSQL Connector Ping test faild. Your server is not responding...";
+                            return MYSQLCON_STD.MYSQL_ERROR;
                         }
                     }
 
@@ -150,7 +188,7 @@ namespace MySqlConnector
                     MYSQL_DataAdapter = new MySqlDataAdapter(string.Empty, MYSQL_Connection);
                     MYSQL_DataSet = new DataSet();
                     MYSQL_Connection.Close();
-                    return 0;
+                    return MYSQLCON_STD.MYSQL_SUCCESS;
                 }
                 catch (Exception ex)
                 {
@@ -245,10 +283,27 @@ namespace MySqlConnector
                 }
             }
 
+            /// <summary>
+            /// <para>
+            /// This method use for, if the user forget to close the reader after using it.
+            /// we are going check if mysql reader still running and close it.Also this method
+            /// use only internally, it should not visible to the user.
+            /// </para>
+            /// </summary>
+            private static void MYSQL_CloseReaderIF()
+            {
+                if (MYSQL_DataReader.IsClosed != true)
+                {
+                    MYSQL_DataReader.Close();
+                }
+            }
+
 
             /// <summary>
             /// Read data from your database using a SQL statement.
+            /// 
             /// <para> 
+            /// <b>NOTE:</b>
             /// While the MySql.Data.MySqlClient.MySqlDataReader is in use, the associated MySql.Data.MySqlClient.MySqlConnection
             /// is busy serving the MySql.Data.MySqlClient.MySqlDataReader, and no other operations can be performed on the MySqlConnection 
             /// other than closing it. This is the case until the MySql.Data.MySqlClient.MySqlDataReader.Close method of the MySql.Data.MySqlClient.MySqlDataReader
@@ -261,11 +316,13 @@ namespace MySqlConnector
             /// </para>
             /// </summary>
             /// <param name="query">SQL Statement</param>
-            /// <returns>Returns data on success or null on failure. Use <c>MYSQL_LastError()</c> method for get more information about the failure.</returns>
+            /// <returns>Returns data on success or <c>null</c> on failure. Use <c>MYSQL_LastError()</c> method for get more information about the failure.</returns>
             public static MySqlDataReader MYSQL_Reader(string query)
             {
                 try
                 {
+                    MYSQL_CloseReaderIF();
+
                     if(MYSQL_CONNECTION_INITIALIZED)
                     {
                         if (MYSQL_ConnectionIsOpen())
@@ -286,7 +343,7 @@ namespace MySqlConnector
                         else
                         {
                             MYSQL_LAST_ERROR = "MYSQL Connection offline.";
-                            return null;
+                            throw new MYSQL_ClosedConException(MYSQL_LAST_ERROR);
                         }
                     }
                     else
@@ -310,41 +367,60 @@ namespace MySqlConnector
             {
                 if(MYSQL_CONNECTION_INITIALIZED)
                 {
-                    if (MYSQL_DataReader.IsClosed == false)
+                    if (MYSQL_DataReader.IsClosed != true && MYSQL_DataReader != null)
+                    {
                         MYSQL_DataReader.Close();
+                    }
+                    else
+                    {
+                        MYSQL_LAST_ERROR = "MYSQL Reader is already closed or returned NULL";
+                        throw new NullReferenceException(MYSQL_LAST_ERROR);
+                    }
                 }
                 else
                 {
-                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly setuped. Try MYSQL_ConfigureAndInitialize(...) method.";
+                    MYSQL_LAST_ERROR = "MYSQL Connection is not correctly initialized. Try MYSQL_ConfigureAndInitialize(...) method.";
+                    throw new MYSQL_InitException(MYSQL_LAST_ERROR);
                 }
             }
 
             
             /// <summary>
-            /// Write new records to your database using a SQL statement.
+            /// Add a new records to your table using a SQL statement.
+            /// <para>
+            /// <b>Exceptions:</b>
+            /// <see cref="MYSQL_ClosedConException"/>,
+            /// <see cref="MYSQL_InternelException"/>
+            /// </para>
             /// </summary>
             /// <param name="query">SQL Statement</param>
-            /// <returns>Number of affected rows. For other type of statements return value is -1. On failure return -2 </returns>
+            /// <returns>Number of affected rows. For other type of statements returns <c>MYSQL_ZERO_AFFECTED</c>.</returns>
             public static int MYSQL_Writer(string query)
             {
                 try
                 {
+                    MYSQL_CloseReaderIF();
+
                     if (MYSQL_ConnectionIsOpen())
                     {
                         MYSQL_Command.CommandText = query;
-                        return MYSQL_Command.ExecuteNonQuery();
+                        int rows_affect = MYSQL_Command.ExecuteNonQuery();
+                        if (rows_affect >= 0)
+                            return rows_affect;
+                        else
+                            return (int)MYSQLCON_STD.MYSQL_ZERO_AFFECTED;
                     }
                     else
                     {
 
                         MYSQL_LAST_ERROR = "MYSQL Connection is offline.";
-                        return -2;
+                        throw new MYSQL_ClosedConException(MYSQL_LAST_ERROR);
                     }
                 }
                 catch (Exception ex)
                 {
                     MYSQL_LAST_ERROR = ex.Message;
-                    return -2;
+                    throw new MYSQL_InternelException(ex.Message);
                 }
             }
 
@@ -355,22 +431,22 @@ namespace MySqlConnector
             /// You can access your using <c>MYSQL_TableAccess()</c> method
             /// </summary>
             /// <param name="tableName">Name of table that your going import from your data source</param>
-            /// <returns>Return 0 on success or -1 on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
-            public static int MYSQL_ImportTable(string tableName)
+            /// <returns>Return <c>MYSQL_SUCCESS</c> on success or <c>MYSQL_ERROR</c> on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
+            public static MYSQLCON_STD MYSQL_ImportTable(string tableName)
             {
                 try
                 {
                     if (MYSQL_DataSet.Tables.Contains(tableName))
                     {
                         MYSQL_LAST_ERROR = $"{tableName} is already in the data set.";
-                        return -1;
+                        return MYSQLCON_STD.MYSQL_ERROR;
                     }
                     else
                     {
                         MYSQL_DataAdapter.SelectCommand.CommandText = $"SELECT * FROM {tableName};";
                         MYSQL_DataAdapter.SelectCommand.ExecuteNonQuery();
                         MYSQL_DataAdapter.Fill(MYSQL_DataSet.Tables[tableName]);
-                        return 0;
+                        return MYSQLCON_STD.MYSQL_SUCCESS;
                     }
                 }
                 catch (Exception ex)
@@ -386,7 +462,7 @@ namespace MySqlConnector
             /// from <see href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/concepts/linq/">here</see>
             /// </summary>
             /// <param name="tableName">Name of table that your imported from your data source</param>
-            /// <returns>Return Table on success or null on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
+            /// <returns>Return Table on success or <c>MYSQL_NOVALUE</c> on failure. Use <c>MYSQL_LastError()</c> for get more information about the failure</returns>
             public static DataTable MYSQL_TableAccess(string tableName)
             {
                 if (MYSQL_DataSet.Tables.Contains(tableName))
@@ -395,7 +471,7 @@ namespace MySqlConnector
                 }
 
                 MYSQL_LAST_ERROR = $"Can not find any table named {tableName}.";
-                return null;
+                return (DataTable)MYSQL_NOVALUE;
             }
 
 
@@ -407,6 +483,8 @@ namespace MySqlConnector
             {
                 return MYSQL_LAST_ERROR;
             }
+
+            #endregion
         }
     }
 
