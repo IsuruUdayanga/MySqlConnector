@@ -319,8 +319,6 @@ namespace MySqlConnector
                 }
             }
 
-
-            //TODO : Fix the return value of this method
             
             /// <summary>
             /// Write new records to your database using a SQL statement.
